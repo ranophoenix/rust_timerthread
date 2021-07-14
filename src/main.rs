@@ -29,6 +29,7 @@ fn main() {
     let err_counter = Arc::new(RwLock::new(0));
     let err_counter_ro = err_counter.clone();
 
+    //Thread to update counters.
     let _receiver_handle = thread::spawn(move || {
         while let Ok(task_result) = rx.recv() {
             match task_result {
@@ -38,6 +39,7 @@ fn main() {
         }
     });
 
+    //This thread sleeps once a second to print counters.
     let timer_handle = thread::spawn(move || {
         let mut secs = 1;
         loop {
@@ -50,6 +52,7 @@ fn main() {
     });
 
 
+    //Creates five threads to simulate tasks running concurrently.
     for _ in 0..5 {
         let tx_c = tx.clone();
         let _worker = thread::spawn(move || {
