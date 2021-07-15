@@ -5,7 +5,7 @@ use std::sync::{RwLock, Arc};
 use rand::Rng;
 
 ///Simulates a task that lasts between 1 and 500 milliseconds with a probability of 4/5 success.
-fn a_long_running_task() -> Result<(), &'static str>{
+fn an_amazing_task() -> Result<(), &'static str>{
     let mut rng = rand::thread_rng();
     thread::sleep(Duration::from_millis(rng.gen_range(1..500)));
     if rng.gen_ratio(4, 5) {
@@ -57,7 +57,7 @@ fn main() {
         let tx_c = tx.clone();
         let _worker = thread::spawn(move || {
             loop {
-                let _ = tx_c.send(a_long_running_task());
+                let _ = tx_c.send(an_amazing_task());
             }
         });
     }
