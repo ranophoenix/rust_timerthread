@@ -1,7 +1,6 @@
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use std::sync::mpsc::channel;
-use std::sync::{RwLock, Arc};
 use rand::Rng;
 
 ///Simulates a task that lasts between 1 and 500 milliseconds with a probability of 4/5 success.
@@ -19,35 +18,37 @@ fn an_amazing_task() -> Result<(), &'static str>{
 fn main() {
 
     let (tx, rx) = channel();
-
-    //Written by the receiver thread
-    let counter = Arc::new(RwLock::new(0));
-    //Read by the timer thread
-    let counter_ro = counter.clone();
-
-    //Same as above
-    let err_counter = Arc::new(RwLock::new(0));
-    let err_counter_ro = err_counter.clone();
+    let (timer_tx, timer_rx) = channel();
 
     //Thread to update counters.
     let _receiver_handle = thread::spawn(move || {
+        let mut counter = 0;
+        let mut err_counter = 0;
+        let start = Instant::now();
+        let mut past_seconds = 0;
         while let Ok(task_result) = rx.recv() {
             match task_result {
-                Ok(_) => *counter.write().unwrap() += 1,
-                Err(_) => *err_counter.write().unwrap() += 1
+                Ok(_) => counter += 1,
+                Err(_) => err_counter += 1
+            }
+            let duration = start.elapsed();
+
+            if duration.as_secs() > past_seconds {
+                past_seconds += 1;
+                let _ = timer_tx.send((counter, err_counter, duration.as_secs()));
             }
         }
     });
 
     //This thread sleeps once a second to print counters.
     let timer_handle = thread::spawn(move || {
-        let mut secs = 1;
         loop {
-            thread::sleep(Duration::from_secs(1));
-            let success = *counter_ro.read().unwrap();
-            let errors =  *err_counter_ro.read().unwrap();
-            println!("{} ok ops/sec | OK: {} Err: {}", success / secs, success, errors);
-            secs += 1;
+            while let Ok(counters) = timer_rx.recv() {
+                let success = counters.0;
+                let errors = counters.1;
+                let secs = counters.2;
+                    println!("{} ok ops/sec | OK: {} Err: {} Elapsed Time: {}", success / secs, success, errors, secs);
+            }
         }
     });
 
